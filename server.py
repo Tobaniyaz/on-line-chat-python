@@ -14,20 +14,14 @@ users = {}
 def home():
     return render_template("index.html")
 
-
-# 📁 загрузка файлов
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files["file"]
-    filename = file.filename
-    path = os.path.join(UPLOAD_FOLDER, filename)
+    path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(path)
 
-    file_url = f"/files/{filename}"
-    return {"url": file_url}
+    return {"url": f"/files/{file.filename}", "name": file.filename}
 
-
-# 📂 отдача файлов
 @app.route("/files/<name>")
 def files(name):
     return send_from_directory(UPLOAD_FOLDER, name)
@@ -45,19 +39,20 @@ def message(msg):
 
     emit("message", {
         "name": name,
-        "text": msg,
-        "type": "text"
+        "type": "text",
+        "data": msg
     }, broadcast=True)
 
 
-@socketio.on("file_msg")
+@socketio.on("file")
 def file_msg(data):
     name = users.get(request.sid, "Unknown")
 
     emit("message", {
         "name": name,
-        "text": data["url"],
-        "type": data["type"]  # image / file
+        "type": data["type"],  # image / file
+        "data": data["url"],
+        "filename": data.get("filename", "")
     }, broadcast=True)
 
 
