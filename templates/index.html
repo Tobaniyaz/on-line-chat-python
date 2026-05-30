@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Messenger</title>
+<title>Chat Files</title>
 
 <style>
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     background: #0b1220;
     display: flex;
     justify-content: center;
@@ -16,54 +16,21 @@ body {
     color: white;
 }
 
-/* LOGIN */
-#login {
-    width: 320px;
-    background: #111827;
-    padding: 20px;
-    border-radius: 14px;
-    text-align: center;
-}
-
-#login input {
-    width: 90%;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: none;
-    outline: none;
-    background: #0b1220;
-    color: white;
-}
-
-#login button {
-    margin-top: 10px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 10px;
-    background: #3b82f6;
-    color: white;
-    cursor: pointer;
-}
-
-/* APP */
 .app {
     width: 450px;
     height: 650px;
     background: #111827;
-    border-radius: 16px;
     display: flex;
     flex-direction: column;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
 }
 
 .header {
-    background: #1f2937;
     padding: 10px;
+    background: #1f2937;
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
 }
 
 #chat {
@@ -73,21 +40,21 @@ body {
 }
 
 .msg {
-    margin: 6px 0;
-    padding: 8px;
     background: #1f2937;
+    padding: 8px;
+    margin: 6px 0;
     border-radius: 10px;
 }
 
 .name {
-    font-weight: bold;
     color: #60a5fa;
-    font-size: 13px;
+    font-weight: bold;
 }
 
-.text {
-    margin-top: 3px;
-    word-wrap: break-word;
+img {
+    max-width: 100%;
+    border-radius: 10px;
+    margin-top: 5px;
 }
 
 .input {
@@ -96,17 +63,115 @@ body {
     background: #1f2937;
 }
 
-.input input {
+input[type=text] {
     flex: 1;
     padding: 10px;
-    border: none;
     border-radius: 10px;
-    outline: none;
+    border: none;
     background: #0b1220;
     color: white;
 }
 
-.input button {
+button {
+    margin-left: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: white;
+}
+
+.file-btn {
+    background: #10b981;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="header">
+    <div>Chat + Files</div>
+</div>
+
+<div id="chat"></div>
+
+<div class="input">
+    <input id="msg" type="text" placeholder="message">
+
+    <input type="file" id="file" style="display:none">
+
+    <button onclick="send()">Send</button>
+    <button class="file-btn" onclick="document.getElementById('file').click()">+</button>
+</div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+<script>
+const socket = io();
+
+/* TEXT */
+function send(){
+    let input = document.getElementById("msg");
+    if(input.value.trim() === "") return;
+
+    socket.send(input.value);
+    input.value = "";
+}
+
+/* FILE UPLOAD */
+document.getElementById("file").addEventListener("change", async function(){
+
+    let file = this.files[0];
+    let form = new FormData();
+    form.append("file", file);
+
+    let res = await fetch("/upload", {
+        method: "POST",
+        body: form
+    });
+
+    let data = await res.json();
+
+    let type = file.type.startsWith("image") ? "image" : "file";
+
+    socket.emit("file_msg", {
+        url: data.url,
+        type: type
+    });
+});
+
+/* RECEIVE */
+socket.on("message", data => {
+    let div = document.createElement("div");
+    div.className = "msg";
+
+    let content = "";
+
+    if(data.type === "image"){
+        content = `<img src="${data.text}">`;
+    } else if(data.type === "file"){
+        content = `<a href="${data.text}" download style="color:#60a5fa">Download file</a>`;
+    } else {
+        content = data.text;
+    }
+
+    div.innerHTML = `
+        <div class="name">${data.name}</div>
+        <div>${content}</div>
+    `;
+
+    let chat = document.getElementById("chat");
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+});
+</script>
+
+</body>
+</html.input button {
     margin-left: 10px;
     padding: 10px 14px;
     border: none;
