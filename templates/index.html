@@ -7,7 +7,7 @@
 <style>
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     background: #0b1220;
     display: flex;
     justify-content: center;
@@ -43,7 +43,6 @@ body {
     border-radius: 10px;
     background: #3b82f6;
     color: white;
-    cursor: pointer;
 }
 
 /* APP */
@@ -55,7 +54,6 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
 }
 
 .header {
@@ -92,8 +90,8 @@ body {
 
 img {
     max-width: 100%;
-    margin-top: 5px;
     border-radius: 10px;
+    margin-top: 5px;
 }
 
 .input {
@@ -127,6 +125,12 @@ button {
 }
 
 .hidden { display:none; }
+
+#typing {
+    font-size: 12px;
+    color: gray;
+    padding: 5px 10px;
+}
 </style>
 </head>
 
@@ -135,7 +139,7 @@ button {
 <!-- LOGIN -->
 <div id="login">
     <h3>Nickname</h3>
-    <input id="name" placeholder="enter name">
+    <input id="name">
     <button onclick="login()">Join</button>
     <p id="err" style="color:red;"></p>
 </div>
@@ -149,6 +153,8 @@ button {
 </div>
 
 <div id="chat"></div>
+
+<div id="typing"></div>
 
 <div class="input">
     <input id="msg" type="text" placeholder="message">
@@ -166,7 +172,6 @@ button {
 <script>
 const socket = io();
 
-let username = "";
 let loggedIn = false;
 
 /* LOGIN */
@@ -174,19 +179,20 @@ function login(){
     socket.emit("login", document.getElementById("name").value);
 }
 
-socket.on("login_ok", () => {
+socket.on("login_ok", data => {
     loggedIn = true;
-    username = document.getElementById("name").value;
 
     document.getElementById("login").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
+
+    document.getElementById("count").innerText = data.users + " users";
 });
 
 socket.on("login_error", msg => {
     document.getElementById("err").innerText = msg;
 });
 
-/* TEXT MESSAGE */
+/* TEXT SEND */
 function send(){
     let input = document.getElementById("msg");
 
@@ -197,14 +203,14 @@ function send(){
     input.value = "";
 }
 
-/* ENTER SEND */
+/* ENTER */
 document.addEventListener("keydown", e => {
     if(e.key === "Enter" && document.activeElement.id === "msg"){
         send();
     }
 });
 
-/* FILE -> BASE64 (NO SERVER STORAGE) */
+/* FILE + IMAGE (BASE64) */
 document.getElementById("file").addEventListener("change", function(){
 
     let file = this.files[0];
@@ -253,9 +259,45 @@ socket.on("message", data => {
 
     let chat = document.getElementById("chat");
     chat.appendChild(div);
-
-    // auto scroll
     chat.scrollTop = chat.scrollHeight;
+});
+
+/* USERS COUNT */
+socket.on("users_count", c => {
+    document.getElementById("count").innerText = c + " users";
+});
+
+/* TYPING */
+let typingUsers = new Set();
+
+socket.on("typing", data => {
+
+    if(data.state){
+        typingUsers.add(data.name);
+    } else {
+        typingUsers.delete(data.name);
+    }
+
+    let text = "";
+
+    if(typingUsers.size > 0){
+        text = [...typingUsers].join(", ") + " is typing...";
+    }
+
+    document.getElementById("typing").innerText = text;
+});
+
+/* SEND TYPING STATUS */
+let typingTimeout;
+
+document.getElementById("msg").addEventListener("input", () => {
+    socket.emit("typing", { state: true });
+
+    clearTimeout(typingTimeout);
+
+    typingTimeout = setTimeout(() => {
+        socket.emit("typing", { state: false });
+    }, 800);
 });
 </script>
 
