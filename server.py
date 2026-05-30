@@ -1,62 +1,64 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_from_directory
 from flask_socketio import SocketIO, emit
+import os
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-users = {}  # sid -> username
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+users = {}
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
+# 📁 загрузка файлов
+@app.route("/upload", methods=["POST"])
+def upload():
+    file = request.files["file"]
+    filename = file.filename
+    path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(path)
+
+    file_url = f"/files/{filename}"
+    return {"url": file_url}
+
+
+# 📂 отдача файлов
+@app.route("/files/<name>")
+def files(name):
+    return send_from_directory(UPLOAD_FOLDER, name)
+
+
 @socketio.on("login")
 def login(username):
-    sid = request.sid
-
-    # защита от пустого ника
-    if not username or username.strip() == "":
-        emit("login_error", "Empty nickname")
-        return
-
-    username = username.strip()
-
-    # проверка уникальности
-    if username in users.values():
-        emit("login_error", "Nickname already taken")
-        return
-
-    users[sid] = username
-
+    users[request.sid] = username
     emit("login_ok", username)
-    emit("users_count", len(users), broadcast=True)
 
 
 @socketio.on("message")
-def handle(msg):
-    sid = request.sid
-    name = users.get(sid)
-
-    # если нет ника — не даём писать
-    if not name:
-        emit("error", "You are not logged in")
-        return
+def message(msg):
+    name = users.get(request.sid, "Unknown")
 
     emit("message", {
         "name": name,
-        "text": msg
+        "text": msg,
+        "type": "text"
     }, broadcast=True)
 
 
-@socketio.on("disconnect")
-def disconnect():
-    sid = request.sid
+@socketio.on("file_msg")
+def file_msg(data):
+    name = users.get(request.sid, "Unknown")
 
-    if sid in users:
-        del users[sid]
-
-    emit("users_count", len(users), broadcast=True)
+    emit("message", {
+        "name": name,
+        "text": data["url"],
+        "type": data["type"]  # image / file
+    }, broadcast=True)
 
 
 if __name__ == "__main__":
