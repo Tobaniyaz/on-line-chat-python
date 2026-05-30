@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Web Messenger</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .app {
+        width: 400px;
+        height: 600px;
+        background: #111827;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .header {
+        background: #1f2937;
+        padding: 15px;
+        color: white;
+        text-align: center;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    #chat {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        color: white;
+        font-size: 14px;
+    }
+
+    .msg {
+        background: #1f2937;
+        padding: 8px 10px;
+        margin: 5px 0;
+        border-radius: 10px;
+        max-width: 80%;
+        word-wrap: break-word;
+    }
+
+    .input-area {
+        display: flex;
+        padding: 10px;
+        background: #1f2937;
+    }
+
+    input {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        outline: none;
+        border-radius: 10px;
+        background: #0f172a;
+        color: white;
+    }
+
+    button {
+        margin-left: 10px;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 10px;
+        background: #3b82f6;
+        color: white;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        background: #2563eb;
+    }
+</style>
+
+</head>
+
+<body>
+
+<div class="app">
+    <div class="header">WEB MESSENGER</div>
+
+    <div id="chat"></div>
+
+    <div class="input-area">
+        <input id="msg" placeholder="Write message...">
+        <button onclick="send()">Send</button>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+<script>
+    const socket = io();
+
+    socket.on("message", function(msg){
+        let div = document.createElement("div");
+        div.className = "msg";
+        div.innerText = msg;
+
+        document.getElementById("chat").appendChild(div);
+        document.getElementById("chat").scrollTop = 999999;
+    });
+
+    function send(){
+        let input = document.getElementById("msg");
+        if(input.value.trim() === "") return;
+
+        socket.send(input.value);
+        input.value = "";
+    }
+</script>
+
+</body>
+</html>
