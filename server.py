@@ -1,12 +1,16 @@
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+# 🟢 стабильный режим (без eventlet проблем на Render)
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="threading"
+)
 
-# 👥 users
 users = {}  # sid -> username
 
 
@@ -30,20 +34,17 @@ def login(username):
 
     users[request.sid] = username
 
-    # 👥 обновляем всем количество пользователей
-    emit("users_count", len(users), broadcast=True)
-
     emit("login_ok", {
         "name": username,
         "users": len(users)
     })
 
+    emit("users_count", len(users), broadcast=True)
 
-# 💬 TEXT MESSAGE
+
+# 💬 MESSAGE
 @socketio.on("message")
 def message(msg):
-    from flask import request
-
     name = users.get(request.sid)
     if not name:
         return
@@ -59,11 +60,9 @@ def message(msg):
     }, broadcast=True)
 
 
-# 📎 FILE / IMAGE (base64)
+# 📎 FILE / IMAGE
 @socketio.on("file")
 def file_event(data):
-    from flask import request
-
     name = users.get(request.sid, "Unknown")
 
     emit("message", {
@@ -77,8 +76,6 @@ def file_event(data):
 # ⌨️ TYPING
 @socketio.on("typing")
 def typing(data):
-    from flask import request
-
     name = users.get(request.sid)
     if not name:
         return
@@ -98,7 +95,7 @@ def disconnect():
     emit("users_count", len(users), broadcast=True)
 
 
-# 🚀 START SERVER
+# 🚀 START (RENDER SAFE)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
