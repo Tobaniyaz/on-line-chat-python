@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Discord-like Chat</title>
+<title>Messenger</title>
 
 <style>
 body {
     margin: 0;
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     background: #0b1220;
     display: flex;
     justify-content: center;
@@ -16,6 +16,37 @@ body {
     color: white;
 }
 
+/* LOGIN */
+#login {
+    width: 320px;
+    background: #111827;
+    padding: 20px;
+    border-radius: 14px;
+    text-align: center;
+}
+
+#login input {
+    width: 90%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    background: #0b1220;
+    color: white;
+}
+
+#login button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+
+/* APP */
 .app {
     width: 450px;
     height: 650px;
@@ -24,6 +55,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
 }
 
 .header {
@@ -41,7 +73,7 @@ body {
 }
 
 .msg {
-    margin: 8px 0;
+    margin: 6px 0;
     padding: 8px;
     background: #1f2937;
     border-radius: 10px;
@@ -55,6 +87,7 @@ body {
 
 .text {
     margin-top: 3px;
+    word-wrap: break-word;
 }
 
 .input {
@@ -63,7 +96,7 @@ body {
     background: #1f2937;
 }
 
-input {
+.input input {
     flex: 1;
     padding: 10px;
     border: none;
@@ -73,7 +106,7 @@ input {
     color: white;
 }
 
-button {
+.input button {
     margin-left: 10px;
     padding: 10px 14px;
     border: none;
@@ -83,23 +116,23 @@ button {
     cursor: pointer;
 }
 
-button:hover {
-    background: #2563eb;
+.hidden {
+    display: none;
 }
-
-.hidden { display:none; }
 </style>
-</head>
 
+</head>
 <body>
 
+<!-- LOGIN -->
 <div id="login">
-    <h3>Nickname</h3>
-    <input id="name" placeholder="enter name">
+    <h3>Enter nickname</h3>
+    <input id="name" placeholder="nickname">
     <button onclick="login()">Join</button>
     <p id="err" style="color:red;"></p>
 </div>
 
+<!-- APP -->
 <div class="app hidden" id="app">
     <div class="header">
         <div>Chat</div>
@@ -120,6 +153,7 @@ button:hover {
 const socket = io();
 let username = "";
 
+/* LOGIN */
 function login(){
     username = document.getElementById("name").value;
     socket.emit("login", username);
@@ -134,6 +168,7 @@ socket.on("login_ok", () => {
     document.getElementById("app").classList.remove("hidden");
 });
 
+/* MESSAGE */
 socket.on("message", data => {
     let div = document.createElement("div");
     div.className = "msg";
@@ -145,13 +180,16 @@ socket.on("message", data => {
 
     let chat = document.getElementById("chat");
     chat.appendChild(div);
+
     chat.scrollTop = chat.scrollHeight;
 });
 
+/* USERS COUNT */
 socket.on("users_count", count => {
     document.getElementById("count").innerText = count + " users";
 });
 
+/* SEND */
 function send(){
     let input = document.getElementById("msg");
     if(input.value.trim() === "") return;
@@ -160,6 +198,7 @@ function send(){
     input.value = "";
 }
 
+/* ENTER */
 document.addEventListener("keydown", e => {
     if(e.key === "Enter" && document.activeElement.id === "msg"){
         send();
