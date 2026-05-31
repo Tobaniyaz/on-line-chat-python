@@ -16,7 +16,6 @@ body {
     color: white;
 }
 
-/* LOGIN */
 #login {
     width: 320px;
     background: #111827;
@@ -45,10 +44,9 @@ body {
     color: white;
 }
 
-/* APP */
 .app {
-    width: 450px;
-    height: 650px;
+    width: min(95vw, 500px);
+    height: min(92vh, 700px);
     background: #111827;
     border-radius: 16px;
     display: flex;
@@ -75,6 +73,8 @@ body {
     padding: 8px;
     background: #1f2937;
     border-radius: 10px;
+    max-width: 100%;
+    word-break: break-word;
 }
 
 .name {
@@ -83,19 +83,9 @@ body {
     font-size: 13px;
 }
 
-.text {
-    margin-top: 3px;
-    word-wrap: break-word;
-}
-
-img {
-    max-width: 100%;
-    border-radius: 10px;
-    margin-top: 5px;
-}
-
 .input {
     display: flex;
+    gap: 6px;
     padding: 10px;
     background: #1f2937;
 }
@@ -107,6 +97,201 @@ input[type=text] {
     border: none;
     outline: none;
     background: #0b1220;
+    color: white;
+}
+
+button {
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+
+.file {
+    background: #10b981;
+}
+
+.hidden { display:none; }
+
+#typing {
+    font-size: 12px;
+    color: gray;
+    padding: 5px 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="login">
+    <h3>Nickname</h3>
+    <input id="name">
+    <button onclick="login()">Join</button>
+    <p id="err" style="color:red;"></p>
+</div>
+
+<div class="app hidden" id="app">
+
+<div class="header">
+    <div>Messenger</div>
+    <div id="count">0 users</div>
+</div>
+
+<div id="chat"></div>
+
+<div id="typing"></div>
+
+<div class="input">
+    <input id="msg" type="text" placeholder="message">
+
+    <input type="file" id="file" style="display:none">
+
+    <button onclick="send()">Send</button>
+    <button class="file" onclick="document.getElementById('file').click()">+</button>
+</div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+<script>
+const socket = io({
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000
+});
+
+let loggedIn = false;
+
+/* LOGIN */
+function login(){
+    let nick = document.getElementById("name").value.trim();
+    if(!nick) return;
+
+    localStorage.setItem("nickname", nick);
+    socket.emit("login", nick);
+}
+
+/* RESTORE */
+window.addEventListener("load", () => {
+    const saved = localStorage.getItem("nickname");
+    if(saved){
+        document.getElementById("name").value = saved;
+    }
+});
+
+/* CONNECT BACK */
+socket.on("connect", () => {
+    const saved = localStorage.getItem("nickname");
+    if(saved){
+        socket.emit("login", saved);
+    }
+});
+
+/* LOGIN OK */
+socket.on("login_ok", data => {
+    loggedIn = true;
+
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+
+    document.getElementById("count").innerText = data.users + " users";
+});
+
+/* ERR */
+socket.on("login_error", msg => {
+    document.getElementById("err").innerText = msg;
+});
+
+/* SEND */
+function send(){
+    let input = document.getElementById("msg");
+    if(!loggedIn) return;
+
+    if(input.value.trim() === "") return;
+
+    socket.send(input.value.trim());
+    input.value = "";
+}
+
+/* ENTER */
+document.addEventListener("keydown", e => {
+    if(e.key === "Enter" && document.activeElement.id === "msg"){
+        send();
+    }
+});
+
+/* FILE */
+document.getElementById("file").addEventListener("change", function(){
+    let file = this.files[0];
+    let reader = new FileReader();
+
+    reader.onload = function(){
+        socket.emit("file", {
+            type: file.type.startsWith("image") ? "image" : "file",
+            data: reader.result,
+            filename: file.name
+        });
+    };
+
+    reader.readAsDataURL(file);
+});
+
+/* MESSAGE */
+socket.on("message", data => {
+    let div = document.createElement("div");
+    div.className = "msg";
+
+    let content = "";
+
+    if(data.type === "image"){
+        content = `<img src="${data.data}" style="max-width:100%;border-radius:10px">`;
+    } else if(data.type === "file"){
+        content = `<a href="${data.data}" download="${data.filename}" style="color:#60a5fa">${data.filename}</a>`;
+    } else {
+        content = data.data;
+    }
+
+    div.innerHTML = `<div class="name">${data.name}</div><div>${content}</div>`;
+
+    let chat = document.getElementById("chat");
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+});
+
+/* USERS */
+socket.on("users_count", c => {
+    document.getElementById("count").innerText = c + " users";
+});
+
+/* TYPING */
+let typingUsers = new Set();
+
+socket.on("typing", data => {
+    if(data.state) typingUsers.add(data.name);
+    else typingUsers.delete(data.name);
+
+    document.getElementById("typing").innerText =
+        typingUsers.size ? [...typingUsers].join(", ") + " is typing..." : "";
+});
+
+let typingTimeout;
+
+document.getElementById("msg").addEventListener("input", () => {
+    socket.emit("typing", {state:true});
+
+    clearTimeout(typingTimeout);
+
+    typingTimeout = setTimeout(() => {
+        socket.emit("typing", {state:false});
+    }, 800);
+});
+</script>
+
+</body>
+</html>    background: #0b1220;
     color: white;
 }
 
