@@ -4,22 +4,22 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 
+# 🟢 стабильный режим (без eventlet проблем на Render)
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode="threading",
-    ping_timeout=60,
-    ping_interval=25
+    async_mode="threading"
 )
 
-users = {}
+users = {}  # sid -> username
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# 🔐 LOGIN (фикс переподключения)
+# 🔐 LOGIN
 @socketio.on("login")
 def login(username):
     username = (username or "").strip()
@@ -28,10 +28,9 @@ def login(username):
         emit("login_error", "Nickname too short")
         return
 
-    # убираем старые сессии с таким ником
-    for sid in list(users):
-        if users[sid] == username:
-            del users[sid]
+    if username in users.values():
+        emit("login_error", "Nickname already taken")
+        return
 
     users[request.sid] = username
 
@@ -90,14 +89,17 @@ def typing(data):
 # 👋 DISCONNECT
 @socketio.on("disconnect")
 def disconnect():
-    users.pop(request.sid, None)
+    if request.sid in users:
+        del users[request.sid]
+
     emit("users_count", len(users), broadcast=True)
 
 
+# 🚀 START (RENDER SAFE)
 if __name__ == "__main__":
-    socketio.run(
-        app,
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
-        allow_unsafe_werkzeug=True
+  socketio.run(
+    app,
+    host="0.0.0.0",
+    port=int(os.environ.get("PORT", 10000)),
+    allow_unsafe_werkzeug=True
     )
