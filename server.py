@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 
-# 🟢 стабильный режим (без eventlet проблем на Render)
+
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
