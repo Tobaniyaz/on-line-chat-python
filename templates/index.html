@@ -1,149 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Messenger</title>
-
-<style>
-body {
-    margin: 0;
-    font-family: Arial;
-    background: #0b1220;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    color: white;
-}
-
-#login {
-    width: 320px;
-    background: #111827;
-    padding: 20px;
-    border-radius: 14px;
-    text-align: center;
-}
-
-#login input {
-    width: 90%;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: none;
-    outline: none;
-    background: #0b1220;
-    color: white;
-}
-
-#login button {
-    margin-top: 10px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 10px;
-    background: #3b82f6;
-    color: white;
-}
-
-.app {
-    width: min(95vw, 500px);
-    height: min(92vh, 700px);
-    background: #111827;
-    border-radius: 16px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.header {
-    background: #1f2937;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-}
-
-#chat {
-    flex: 1;
-    padding: 10px;
-    overflow-y: auto;
-}
-
-.msg {
-    margin: 6px 0;
-    padding: 8px;
-    background: #1f2937;
-    border-radius: 10px;
-    max-width: 100%;
-    word-break: break-word;
-}
-
-.name {
-    color: #60a5fa;
-    font-weight: bold;
-    font-size: 13px;
-}
-
-.input {
-    display: flex;
-    gap: 6px;
-    padding: 10px;
-    background: #1f2937;
-}
-
-input[type=text] {
-    flex: 1;
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    outline: none;
-    background: #0b1220;
-    color: white;
-}
-
-button {
-    padding: 10px 12px;
-    border: none;
-    border-radius: 10px;
-    background: #3b82f6;
-    color: white;
-    cursor: pointer;
-}
-
-.file {
-    background: #10b981;
-}
-
-.hidden { display:none; }
-
-#typing {
-    font-size: 12px;
-    color: gray;
-    padding: 5px 10px;
-}
-</style>
-</head>
-
-<body>
-
-<div id="login">
-    <h3>Nickname</h3>
-    <input id="name">
-    <button onclick="login()">Join</button>
-    <p id="err" style="color:red;"></p>
-</div>
-
-<div class="app hidden" id="app">
-
-<div class="header">
-    <div>Messenger</div>
-    <div id="count">0 users</div>
-</div>
-
-<div id="chat"></div>
-
-<div id="typing"></div>
-
-<div class="input">
     <input id="msg" type="text" placeholder="message">
 
     <input type="file" id="file" style="display:none">
@@ -157,40 +11,15 @@ button {
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 
 <script>
-const socket = io({
-    reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 1000
-});
+const socket = io();
 
 let loggedIn = false;
 
 /* LOGIN */
 function login(){
-    let nick = document.getElementById("name").value.trim();
-    if(!nick) return;
-
-    localStorage.setItem("nickname", nick);
-    socket.emit("login", nick);
+    socket.emit("login", document.getElementById("name").value);
 }
 
-/* RESTORE */
-window.addEventListener("load", () => {
-    const saved = localStorage.getItem("nickname");
-    if(saved){
-        document.getElementById("name").value = saved;
-    }
-});
-
-/* CONNECT BACK */
-socket.on("connect", () => {
-    const saved = localStorage.getItem("nickname");
-    if(saved){
-        socket.emit("login", saved);
-    }
-});
-
-/* LOGIN OK */
 socket.on("login_ok", data => {
     loggedIn = true;
 
@@ -200,16 +29,15 @@ socket.on("login_ok", data => {
     document.getElementById("count").innerText = data.users + " users";
 });
 
-/* ERR */
 socket.on("login_error", msg => {
     document.getElementById("err").innerText = msg;
 });
 
-/* SEND */
+/* TEXT SEND */
 function send(){
     let input = document.getElementById("msg");
-    if(!loggedIn) return;
 
+    if(!loggedIn) return;
     if(input.value.trim() === "") return;
 
     socket.send(input.value.trim());
@@ -219,6 +47,103 @@ function send(){
 /* ENTER */
 document.addEventListener("keydown", e => {
     if(e.key === "Enter" && document.activeElement.id === "msg"){
+        send();
+    }
+});
+
+/* FILE + IMAGE (BASE64) */
+document.getElementById("file").addEventListener("change", function(){
+
+    let file = this.files[0];
+    let reader = new FileReader();
+
+    reader.onload = function(){
+
+        let base64 = reader.result;
+
+        let type = file.type.startsWith("image") ? "image" : "file";
+
+        socket.emit("file", {
+            type: type,
+            data: base64,
+            filename: file.name
+        });
+    };
+
+    reader.readAsDataURL(file);
+});
+
+/* RECEIVE MESSAGE */
+socket.on("message", data => {
+
+    let div = document.createElement("div");
+    div.className = "msg";
+
+    let content = "";
+
+    if(data.type === "image"){
+        content = `<img src="${data.data}">`;
+    }
+    else if(data.type === "file"){
+        content = `<a download="${data.filename}" href="${data.data}" style="color:#60a5fa">
+            📎 ${data.filename}
+        </a>`;
+    }
+    else {
+        content = data.data;
+    }
+
+    div.innerHTML = `
+        <div class="name">${data.name}</div>
+        <div class="text">${content}</div>
+    `;
+
+    let chat = document.getElementById("chat");
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+});
+
+/* USERS COUNT */
+socket.on("users_count", c => {
+    document.getElementById("count").innerText = c + " users";
+});
+
+/* TYPING */
+let typingUsers = new Set();
+
+socket.on("typing", data => {
+
+    if(data.state){
+        typingUsers.add(data.name);
+    } else {
+        typingUsers.delete(data.name);
+    }
+
+    let text = "";
+
+    if(typingUsers.size > 0){
+        text = [...typingUsers].join(", ") + " is typing...";
+    }
+
+    document.getElementById("typing").innerText = text;
+});
+
+/* SEND TYPING STATUS */
+let typingTimeout;
+
+document.getElementById("msg").addEventListener("input", () => {
+    socket.emit("typing", { state: true });
+
+    clearTimeout(typingTimeout);
+
+    typingTimeout = setTimeout(() => {
+        socket.emit("typing", { state: false });
+    }, 800);
+});
+</script>
+
+</body>
+</html>    if(e.key === "Enter" && document.activeElement.id === "msg"){
         send();
     }
 });
